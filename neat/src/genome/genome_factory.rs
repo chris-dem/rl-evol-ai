@@ -1,9 +1,12 @@
 use itertools::Itertools;
 use num::rational::Ratio;
-use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
+use std::{cmp::Reverse, collections::BinaryHeap};
 
-use super::node_list::{Node, NodeList};
+use super::{
+    mem_cell::{MemoryCell, MemoryCellType},
+    node_list::{Node, NodeList},
+};
 
 // Consider using the following
 // * (Arc/Rc)<_>
@@ -22,8 +25,8 @@ pub enum GenonomeError {
     ZeroIOVector,
 }
 
-const MIN_RATIO: Ratio<usize> = Ratio::new(1, 1);
-const MAX_RATIO: Ratio<usize> = Ratio::new(100, 1);
+const MIN_RATIO: usize = 1;
+const MAX_RATIO: usize = 100;
 
 impl GenomeFactory {
     pub fn init(input: usize, output: usize) -> Result<Self, GenonomeError> {
@@ -34,9 +37,10 @@ impl GenomeFactory {
         let input_list: Arc<_> = Arc::from_iter(
             (&mut id_generator)
                 .take(input)
-                .map(|id| Node::new(id, MIN_RATIO)),
+                .map(|id| Node::new(id, Ratio::from_integer(MIN_RATIO))),
         );
-        let output_list: Arc<_> = Arc::from_iter(id_generator.map(|id| Node::new(id, MAX_RATIO)));
+        let output_list: Arc<_> =
+            Arc::from_iter(id_generator.map(|id| Node::new(id, Ratio::from_integer(MAX_RATIO))));
         Ok(Self {
             input_list,
             output_list,
@@ -55,7 +59,7 @@ impl GenomeFactory {
 pub struct Genome {
     node_list: NodeList,
     genome_list: Vec<GenomeEdge>,
-    memory: Vec<Memory>,
+    memory: Vec<MemoryCellType>,
     pass: bool,
     edge_map: Vec<Vec<Edge>>,
 }
@@ -74,35 +78,23 @@ struct Edge {
     weight: f32,
 }
 
-type PrevCurr = (f32, f32);
-
-#[derive(Debug, Clone, Copy)]
-struct Memory {
-    cell_node: Node,
-    mem_cell: PrevCurr,
-    pass: bool,
-}
-
-impl Memory {
-    fn new(cell_node: Node) -> Self {
-        Memory {
-            cell_node,
-            mem_cell: (0., 0.),
-            pass: false,
-        }
-    }
-}
-
 impl Genome {
     fn new(node_list: NodeList, genome_list: Vec<GenomeEdge>) -> Self {
         let memory = node_list
             .input
             .iter()
-            .chain(node_list.output.iter())
-            .chain(node_list.hidden.iter())
-            .copied()
-            .sorted()
-            .map(Memory::new)
+            .map(|cell| MemoryCellType::Input {
+                node_id: *cell,
+                cell_value: 0.,
+            })
+            .chain(
+                node_list
+                    .output
+                    .iter()
+                    .chain(node_list.hidden.iter())
+                    .map(|cell| MemoryCellType::Activation(MemoryCell::default(*cell))),
+            )
+            .sorted_by_key(|cell| cell.get_id().node_id)
             .collect_vec();
         let mut edge_map = memory.iter().map(|_| Vec::new()).collect_vec();
         for GenomeEdge {
@@ -127,81 +119,237 @@ impl Genome {
     }
 
     // Assumption of memory
-    pub fn forward(&mut self, p: Vec<f32>) -> Vec<f32> {
+    pub fn forward(&mut self, input_vector: &[f32]) -> Option<Vec<f32>> {
         self.pass = !self.pass;
+        if input_vector.len() != self.node_list.input.len() {
+            return None;
+        }
+        for (cell, val) in (0..self.node_list.input.len()).zip_eq(input_vector.iter().copied()) {
+            self.memory[cell].propagate_input(val);
+        }
         // BFS to traverse the network
-        let mut queue = VecDeque::from_iter(self.node_list.hidden.iter().copied());
-        while let Some(head) = queue.pop_front() {
-            let val = self.memory[get_mem_location(&self.memory, head)].mem_cell;
-            for Edge { dest, weight } in self.edge_map[head].iter().copied() {
+        let mut queue = BinaryHeap::from_iter(self.node_list.input.iter().copied().map(Reverse));
+        while let Some(Reverse(head)) = queue.pop() {
+            let val_id = head;
+            self.memory[val_id.node_id].activate(self.pass);
+            for Edge { dest, weight } in self.edge_map[head.node_id].iter().copied() {
                 let index = get_mem_location(&self.memory, dest);
-                self.memory[index].mem_cell += weight * val;
-                if self.memory[index].pass != self.pass {
-                    self.memory[index].pass = self.pass;
-                    queue.push_back(dest);
+                let target_cell = self.memory[index].get_id();
+                let input = match val_id.cmp(&target_cell) {
+                    std::cmp::Ordering::Less => self.memory[val_id.node_id]
+                        .get_current_output(self.pass)
+                        .expect(
+                            "This must be a forward conneciton therefore we caluclated the output",
+                        ), // forward
+                    _ => self.memory[val_id.node_id].get_previous_output(self.pass),
+                };
+                self.memory[target_cell.node_id].propagate_input(input * weight);
+                if self.memory[index].was_not_passed_set(self.pass) {
+                    queue.push(Reverse(self.memory[index].get_id()));
                 }
             }
         }
         let len_input = self.node_list.input.len();
         let len_output = self.node_list.output.len();
         // Extract output memory cells
-        self.memory[len_input..len_input + len_output]
-            .iter()
-            .copied()
-            .map(|Memory { mem_cell, .. }| mem_cell)
-            .collect_vec()
+        Some(
+            self.memory[len_input..len_input + len_output]
+                .iter()
+                .map(|cell| cell.get_current_output(self.pass).unwrap_or(0.))
+                .collect_vec(),
+        )
     }
 }
 
 #[inline]
-fn get_mem_location(memory: &[Memory], item: usize) -> usize {
+fn get_mem_location(memory: &[MemoryCellType], item: usize) -> usize {
     memory
-        .binary_search_by_key(&item, |Memory { cell_id, .. }| *cell_id)
+        .binary_search_by_key(&item, |cell| cell.get_id().node_id)
         .expect("Id should be in list")
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::genome::mem_cell::{Activate, Activation};
+
     use super::*;
     use approx::*;
     use itertools::Itertools;
     use num::rational::{self, Ratio};
-    use proptest::{array, prelude::*};
 
-    proptest! {
+    #[test]
+    fn test_no_hidden() {
+        let weights = [0.5; 8];
+        let edges = vec![
+            GenomeEdge {
+                in_node: 0,
+                out_node: 2,
+                weight: weights[0],
+                enabled: true,
+            },
+            GenomeEdge {
+                in_node: 1,
+                out_node: 2,
+                weight: weights[1],
+                enabled: true,
+            },
+            GenomeEdge {
+                in_node: 0,
+                out_node: 3,
+                weight: weights[2],
+                enabled: true,
+            },
+            GenomeEdge {
+                in_node: 1,
+                out_node: 3,
+                weight: weights[3],
+                enabled: true,
+            },
+            GenomeEdge {
+                in_node: 0,
+                out_node: 4,
+                weight: weights[4],
+                enabled: true,
+            },
+            GenomeEdge {
+                in_node: 1,
+                out_node: 4,
+                weight: weights[5],
+                enabled: true,
+            },
+            GenomeEdge {
+                in_node: 0,
+                out_node: 5,
+                weight: weights[6],
+                enabled: true,
+            },
+            GenomeEdge {
+                in_node: 1,
+                out_node: 5,
+                weight: weights[7],
+                enabled: true,
+            },
+        ];
+        let node_list = NodeList {
+            input: Arc::from_iter(
+                [0, 1]
+                    .map(|c| Node {
+                        node_id: c,
+                        level: Ratio::from_integer(1),
+                    })
+                    .into_iter(),
+            ),
+            output: Arc::from_iter(
+                [2, 3, 4, 5]
+                    .map(|c| Node {
+                        node_id: c,
+                        level: Ratio::from_integer(100),
+                    })
+                    .into_iter(),
+            ),
+            hidden: vec![],
+        };
+        let (x1, x2) = (0.1, 0.5);
+        let mut genome = Genome::new(node_list, edges);
+        let outputs = vec![
+            Activation::Relu.activate((x1 * weights[0] + x2 * weights[1]) / 2.),
+            Activation::Relu.activate((x1 * weights[2] + x2 * weights[3]) / 2.),
+            Activation::Relu.activate((x1 * weights[4] + x2 * weights[5]) / 2.),
+            Activation::Relu.activate((x1 * weights[6] + x2 * weights[7]) / 2.),
+        ];
+        let output_genome = genome.forward(&vec![x1, x2]);
+        assert!(dbg!(outputs)
+            .iter()
+            .copied()
+            .zip_eq(
+                dbg!(output_genome)
+                    .expect("Should be legal input")
+                    .into_iter()
+            )
+            .all(|(a, b)| relative_eq!(a, b)));
+    }
+
+    mod hidden {
+        use super::*;
         #[test]
-        fn test_no_hidden(x1 in any::<f32>().prop_filter("should not be too big", |x| x.abs() < 50.),x2 in any::<f32>().prop_filter("should not be too big", |x| x.abs() < 50.), weights in array::uniform8(any::<f32>().prop_filter("avoid overflow", |c| c.abs() < 10.))){
+        fn test_some_hidden_no_back() {
+            let weights = [2.; 8];
             let edges = vec![
-                GenomeEdge { in_node: 0,out_node: 2,weight: weights[0], enabled : true},
-                GenomeEdge { in_node: 1,out_node: 2,weight: weights[1], enabled : true},
-                GenomeEdge { in_node: 0,out_node: 3,weight: weights[2], enabled : true},
-                GenomeEdge { in_node: 1,out_node: 3,weight: weights[3], enabled : true},
-                GenomeEdge { in_node: 0,out_node: 4,weight: weights[4], enabled : true},
-                GenomeEdge { in_node: 1,out_node: 4,weight: weights[5], enabled : true},
-                GenomeEdge { in_node: 0,out_node: 5,weight: weights[6], enabled : true},
-                GenomeEdge { in_node: 1,out_node: 5,weight: weights[7], enabled : true},
+                GenomeEdge {
+                    in_node: 0,
+                    out_node: 2,
+                    weight: weights[0],
+                    enabled: true,
+                },
+                GenomeEdge {
+                    in_node: 0,
+                    out_node: 4,
+                    weight: weights[1],
+                    enabled: true,
+                },
+                GenomeEdge {
+                    in_node: 1,
+                    out_node: 3,
+                    weight: weights[2],
+                    enabled: true,
+                },
+                GenomeEdge {
+                    in_node: 1,
+                    out_node: 5,
+                    weight: weights[3],
+                    enabled: true,
+                },
+                GenomeEdge {
+                    in_node: 4,
+                    out_node: 2,
+                    weight: weights[4],
+                    enabled: true,
+                },
+                GenomeEdge {
+                    in_node: 5,
+                    out_node: 3,
+                    weight: weights[5],
+                    enabled: true,
+                },
             ];
             let node_list = NodeList {
-                input : vec![0,1].into(),
-                output : vec![2,3,4,5].into(),
-                hidden : vec![]
+                input: Arc::from_iter(
+                    [0, 1]
+                        .map(|c| Node {
+                            node_id: c,
+                            level: Ratio::from_integer(1),
+                        })
+                        .into_iter(),
+                ),
+                output: Arc::from_iter(
+                    [2, 3]
+                        .map(|c| Node {
+                            node_id: c,
+                            level: Ratio::from_integer(100),
+                        })
+                        .into_iter(),
+                ),
+                hidden: [4, 5]
+                    .map(|c| Node {
+                        node_id: c,
+                        level: Ratio::from_integer(50),
+                    })
+                    .into(),
             };
+            let (x1, x2) = (0.1, 0.5);
             let mut genome = Genome::new(node_list, edges);
-            let outputs = vec![
-                x1 * weights[0] + x2 * weights[1],
-                x1 * weights[2] + x2 * weights[3],
-                x1 * weights[4] + x2 * weights[5],
-                x1 * weights[6] + x2 * weights[7],
-            ];
-            let output_genome = genome.forward(vec![x1,x2]);
-            prop_assert!(dbg!(outputs)
-                        .iter()
-                        .copied()
-                        .zip_eq(dbg!(output_genome).into_iter())
-                        .all(|(a,b)| relative_eq!(a,b))
-                    );
+            let outputs = vec![0.3, 1.5];
+            let output_genome = genome.forward(&vec![x1, x2]);
+            assert!(dbg!(outputs)
+                .iter()
+                .copied()
+                .zip_eq(
+                    dbg!(output_genome)
+                        .expect("Should be legal input")
+                        .into_iter()
+                )
+                .all(|(a, b)| relative_eq!(a, b)));
         }
-
     }
     #[test]
     fn rational_test() {
