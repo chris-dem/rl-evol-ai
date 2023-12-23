@@ -1,8 +1,7 @@
-use std::cell;
-
-use super::node_list::Node;
 use errorfunctions::RealErrorFunctions;
 use itertools::Itertools;
+
+use crate::individual::genome::node_list::Node;
 
 pub trait Activate {
     fn activate(&self, x: f32) -> f32;
@@ -141,6 +140,7 @@ impl Activate for Clamp {
     }
 }
 
+#[derive(Debug)]
 pub struct MemoryCell {
     node_id: Node,
     current: f32,
@@ -223,9 +223,30 @@ impl MemoryCell {
     }
 }
 
+#[derive(Debug)]
 pub enum MemoryCellType {
     Input { node_id: Node, cell_value: f32 },
     Activation(MemoryCell),
+}
+
+impl PartialEq for MemoryCellType {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_id() == other.get_id()
+    }
+}
+
+impl Eq for MemoryCellType {}
+
+impl PartialOrd for MemoryCellType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.get_id().partial_cmp(&other.get_id())
+    }
+}
+
+impl Ord for MemoryCellType {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.get_id().cmp(&other.get_id())
+    }
 }
 
 impl MemoryCellType {

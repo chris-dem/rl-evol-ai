@@ -13,3 +13,6 @@ num = "0.4.1"
 proptest = "1.4.0"
 rand = "0.8.5"
 tinyvec = { version = "1.6.0", features = ["alloc"] }
+
+[dev-dependencies]
+rand_chacha = "0.3.1"

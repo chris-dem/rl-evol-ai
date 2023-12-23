@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use num::rational::Ratio;
 
 #[derive(Debug, Clone, Copy)]
