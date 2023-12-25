@@ -6,6 +6,7 @@ use speciation::speciation::{SpeciationMethod, Comparable};
 mod selection;
 mod speciation;
 mod individual;
+mod crossover;
 
 
 pub struct GeneticAlgortihm<Spe,Sel> {

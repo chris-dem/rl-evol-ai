@@ -32,10 +32,11 @@ impl GenomeFactory {
         let input_list: Arc<_> = Arc::from_iter(
             (&mut id_generator)
                 .take(input)
-                .map(|id| Node::new(id, Ratio::from_integer(MIN_RATIO))),
+                .map(|id| Node::new(id, Ratio::from_integer(MIN_RATIO), None)),
         );
-        let output_list: Arc<_> =
-            Arc::from_iter(id_generator.map(|id| Node::new(id, Ratio::from_integer(MAX_RATIO))));
+        let output_list: Arc<_> = Arc::from_iter(
+            id_generator.map(|id| Node::new(id, Ratio::from_integer(MAX_RATIO), None)),
+        );
         Ok(Self {
             input_list,
             output_list,
@@ -51,10 +52,9 @@ impl GenomeFactory {
     }
 }
 
-
 pub struct Genome {
-    node_list: NodeList,
-    genome_list: Vec<GenomeEdge>,
+    pub node_list: NodeList,
+    pub genome_list: Vec<GenomeEdge>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -65,8 +65,6 @@ pub struct GenomeEdge {
     pub enabled: bool,
 }
 
-
-
 impl Genome {
     fn new(node_list: NodeList, genome_list: Vec<GenomeEdge>) -> Self {
         Self {
@@ -74,7 +72,4 @@ impl Genome {
             genome_list,
         }
     }
-    
 }
-
-

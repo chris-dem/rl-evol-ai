@@ -74,11 +74,8 @@ mod tests {
 
         let mut actual_histogram = BTreeMap::new();
 
-        //               there is nothing special about this thousand;
-        //          v--v a number as low as fifty might do the trick, too
-        for _ in 0..10000 {
+        for _ in 0..10_000 {
             let fitness = method.select(&mut rng, &population.iter().collect_vec()).fitness() as i32;
-
             *actual_histogram.entry(fitness).or_insert(0) += 1;
         }
 

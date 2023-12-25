@@ -1,25 +1,24 @@
-use std::{cmp::Reverse, collections::BinaryHeap};
-use itertools::Itertools;
-use crate::individual::genome::{genome::GenomeEdge, network::mem_cell::MemoryCell, node_list::NodeList};
 use super::mem_cell::MemoryCellType;
+use crate::individual::genome::{
+    genome::GenomeEdge, network::mem_cell::MemoryCell, node_list::NodeList,
+};
+use itertools::Itertools;
+use std::{cmp::Reverse, collections::BinaryHeap};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct Lengths {
-    input : usize,
+    input: usize,
     output: usize,
     hidden: usize,
 }
-
 
 pub struct FFNetwork {
     memory: Vec<MemoryCellType>,
     pass: bool,
     edge_map: Vec2D<Edge>,
     back_map: Vec2D<Edge>,
-    lengths : Lengths,
+    lengths: Lengths,
 }
-
-
 
 type Vec2D<T> = Vec<Vec<T>>;
 
@@ -32,7 +31,7 @@ struct Edge {
 #[inline]
 fn get_mem_location(memory: &[MemoryCellType], item: usize) -> usize {
     memory
-        .binary_search_by_key(&item, |cell| cell.get_id().node_id)
+        .binary_search_by_key(&item, |cell| cell.get_node().node_id)
         .expect("Id should be in list")
 }
 
@@ -42,7 +41,7 @@ impl FFNetwork {
             .input
             .iter()
             .map(|cell| MemoryCellType::Input {
-                node_id: *cell,
+                node: *cell,
                 cell_value: 0.,
             })
             .chain(
@@ -52,7 +51,7 @@ impl FFNetwork {
                     .chain(node_list.hidden.iter())
                     .map(|cell| MemoryCellType::Activation(MemoryCell::default(*cell))),
             )
-            .sorted_by_key(|cell| cell.get_id().node_id)
+            .sorted_by_key(|cell| cell.get_node().node_id)
             .collect_vec();
         let mut edge_map = memory.iter().map(|_| Vec::new()).collect_vec();
         let mut back_map = vec![vec![]; node_list.hidden.len()];
@@ -65,8 +64,8 @@ impl FFNetwork {
         {
             let in_index = get_mem_location(&memory, in_node);
             let out_index = get_mem_location(&memory, out_node);
-            let in_node_el = memory[in_index].get_id();
-            let out_node_el = memory[out_index].get_id();
+            let in_node_el = memory[in_index].get_node();
+            let out_node_el = memory[out_index].get_node();
             if in_node_el.level >= out_node_el.level {
                 back_map[out_index - (node_list.input.len() + node_list.output.len())].push(Edge {
                     dest: in_node,
@@ -85,7 +84,11 @@ impl FFNetwork {
             pass: false,
             edge_map,
             back_map,
-            lengths: Lengths { input: node_list.input.len(), output: node_list.output.len(), hidden: node_list.hidden.len() }
+            lengths: Lengths {
+                input: node_list.input.len(),
+                output: node_list.output.len(),
+                hidden: node_list.hidden.len(),
+            },
         }
     }
 
@@ -110,7 +113,12 @@ impl FFNetwork {
             self.memory[cell].propagate_input(val);
         }
         // BFS to traverse the network
-        let mut queue = BinaryHeap::from_iter(self.memory[0..self.lengths.input].iter().map(MemoryCellType::get_id).map(Reverse));
+        let mut queue = BinaryHeap::from_iter(
+            self.memory[0..self.lengths.input]
+                .iter()
+                .map(MemoryCellType::get_node)
+                .map(Reverse),
+        );
         while let Some(Reverse(head)) = queue.pop() {
             let head_id = head;
             let head_idx = get_mem_location(&self.memory, head_id.node_id);
@@ -128,13 +136,13 @@ impl FFNetwork {
             self.memory[head_idx].activate(self.pass);
             for Edge { dest, weight } in self.edge_map[head_idx].iter().copied() {
                 let index = get_mem_location(&self.memory, dest);
-                let target_cell = self.memory[index].get_id();
+                let target_cell = self.memory[index].get_node();
                 let input = self.memory[head_idx]
                     .get_current_output(self.pass)
                     .expect("This must be a forward conneciton therefore we caluclated the output");
                 self.memory[index].propagate_input(input * weight);
                 if self.memory[index].was_not_passed_set(self.pass) {
-                    queue.push(Reverse(self.memory[index].get_id()));
+                    queue.push(Reverse(self.memory[index].get_node()));
                 }
             }
         }
@@ -150,8 +158,9 @@ impl FFNetwork {
 
 #[cfg(test)]
 mod tests {
+    use crate::individual::genome::node_list::{Activate, Activation, Node};
     use std::sync::Arc;
-    use crate::individual::genome::{node_list::Node, network::mem_cell::{Activation, Activate}, genome::Genome};
+
     use super::*;
     use approx::*;
     use itertools::Itertools;
@@ -216,6 +225,7 @@ mod tests {
                     .map(|c| Node {
                         node_id: c,
                         level: Ratio::from_integer(1),
+                        config: Default::default(),
                     })
                     .into_iter(),
             ),
@@ -224,6 +234,7 @@ mod tests {
                     .map(|c| Node {
                         node_id: c,
                         level: Ratio::from_integer(100),
+                        config: Default::default(),
                     })
                     .into_iter(),
             ),
@@ -298,6 +309,7 @@ mod tests {
                         .map(|c| Node {
                             node_id: c,
                             level: Ratio::from_integer(1),
+                            config: Default::default(),
                         })
                         .into_iter(),
                 ),
@@ -306,6 +318,7 @@ mod tests {
                         .map(|c| Node {
                             node_id: c,
                             level: Ratio::from_integer(100),
+                            config: Default::default(),
                         })
                         .into_iter(),
                 ),
@@ -313,6 +326,7 @@ mod tests {
                     .map(|c| Node {
                         node_id: c,
                         level: Ratio::from_integer(50),
+                        config: Default::default(),
                     })
                     .into(),
             };
@@ -377,6 +391,7 @@ mod tests {
                         .map(|c| Node {
                             node_id: c,
                             level: Ratio::from_integer(1),
+                            config: Default::default(),
                         })
                         .into_iter(),
                 ),
@@ -385,6 +400,7 @@ mod tests {
                         .map(|c| Node {
                             node_id: c,
                             level: Ratio::from_integer(100),
+                            config: Default::default(),
                         })
                         .into_iter(),
                 ),
@@ -392,6 +408,7 @@ mod tests {
                     .map(|c| Node {
                         node_id: c,
                         level: Ratio::from_integer(50),
+                        config: Default::default(),
                     })
                     .into(),
             };
@@ -481,6 +498,7 @@ mod tests {
                         .map(|c| Node {
                             node_id: c,
                             level: Ratio::from_integer(1),
+                            config: Default::default(),
                         })
                         .into_iter(),
                 ),
@@ -488,6 +506,7 @@ mod tests {
                     [2].map(|c| Node {
                         node_id: c,
                         level: Ratio::from_integer(100),
+                        config: Default::default(),
                     })
                     .into_iter(),
                 ),
@@ -495,14 +514,17 @@ mod tests {
                     Node {
                         node_id: 3,
                         level: Ratio::from_integer(25),
+                        config: Default::default(),
                     },
                     Node {
                         node_id: 4,
                         level: Ratio::from_integer(25),
+                        config: Default::default(),
                     },
                     Node {
                         node_id: 5,
                         level: Ratio::from_integer(50),
+                        config: Default::default(),
                     },
                 ]
                 .into(),
@@ -582,6 +604,7 @@ mod tests {
                         .map(|c| Node {
                             node_id: c,
                             level: Ratio::from_integer(1),
+                            config: Default::default(),
                         })
                         .into_iter(),
                 ),
@@ -590,6 +613,7 @@ mod tests {
                         .map(|c| Node {
                             node_id: c,
                             level: Ratio::from_integer(100),
+                            config: Default::default(),
                         })
                         .into_iter(),
                 ),
@@ -597,6 +621,7 @@ mod tests {
                     .map(|c| Node {
                         node_id: c,
                         level: Ratio::from_integer(50),
+                        config: Default::default(),
                     })
                     .into(),
             };
