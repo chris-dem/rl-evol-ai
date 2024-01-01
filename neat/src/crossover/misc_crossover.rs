@@ -1,4 +1,4 @@
-use rand::prelude::Rng;
+use rand::{prelude::Rng, RngCore};
 
 use crate::individual::genome::node_list::{Activate, Activation};
 
@@ -17,9 +17,9 @@ impl Default for CrossoverMisc {
 }
 
 impl CrossoverMisc {
-    fn f32_crossover(
+    pub fn f32_crossover(
         &self,
-        rng: &mut impl Rng,
+        rng: &mut dyn RngCore,
         fst: f32,
         weight_fst: f32,
         snd: f32,
@@ -32,6 +32,25 @@ impl CrossoverMisc {
         let t = rng.gen::<f32>();
         let t = t.powf(expo);
         fst * (1. - t) + t * snd
+    }
+
+    pub fn bernoulli_crossover<T>(
+        &self,
+        rng: &mut dyn RngCore,
+        item_fst: T,
+        weight_fst: f32,
+        item_snd: T,
+        weight_snd: f32,
+    ) -> T {
+        let expo = Activation::Sigmoid.activate(weight_fst - weight_snd)
+            * (self.range_float - self.range_float.recip())
+            + self.range_float.recip();
+        let t = rng.gen::<f32>();
+        if t.powf(expo) < 0.5 {
+            item_fst
+        } else {
+            item_snd
+        }
     }
 }
 
@@ -77,6 +96,53 @@ mod tests {
             }
             let avg = cnt as f32 / 10_000.0;
             assert!(dbg!(avg) < 0.)
+        }
+    }
+
+    mod items {
+        use std::collections::{BTreeMap, HashMap};
+
+        use super::*;
+
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+        pub enum Colour {
+            R,
+            G,
+            B,
+        }
+
+        #[test]
+        fn test_discrete_weighted_first() {
+            let a = Colour::R;
+            let f1 = 2.;
+            let b = Colour::B;
+            let f2 = -2.;
+            let st = CrossoverMisc::default();
+            let mut rng = ChaCha8Rng::from_seed(Default::default());
+            let mut map: BTreeMap<Colour, usize> = BTreeMap::new();
+            for _ in 0..10_000 {
+                let f = st.bernoulli_crossover::<Colour>(&mut rng, a, f1, b, f2);
+                map.entry(f).and_modify(|e| *e += 1).or_insert(1);
+            }
+            assert_eq!(map.get(&Colour::G), None);
+            assert!(*map.get(&Colour::R).unwrap() > *map.get(&Colour::B).unwrap());
+        }
+
+        #[test]
+        fn test_discrete_weighted_second() {
+            let a = Colour::R;
+            let f1 = 2.;
+            let b = Colour::B;
+            let f2 = 10.;
+            let st = CrossoverMisc::default();
+            let mut rng = ChaCha8Rng::from_seed(Default::default());
+            let mut map: BTreeMap<Colour, usize> = BTreeMap::new();
+            for _ in 0..10_000 {
+                let f = st.bernoulli_crossover::<Colour>(&mut rng, a, f1, b, f2);
+                map.entry(f).and_modify(|e| *e += 1).or_insert(1);
+            }
+            assert_eq!(map.get(&Colour::G), None);
+            assert!(*map.get(&Colour::R).unwrap() < *map.get(&Colour::B).unwrap());
         }
     }
 }

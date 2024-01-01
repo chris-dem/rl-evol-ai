@@ -1,27 +1,27 @@
-use rand::Rng;
+use rand::{Rng, RngCore};
 
 use crate::individual::genome::{
-    genome::{Genome, GenomeEdge},
+    genome::{Genome, GenomeEdge, OrderedGenomeList},
     node_list::{Config, Node, NodeList},
 };
 
 pub struct Item {
-    item: Genome,
-    fitness: f32,
+    pub item: Genome,
+    pub fitness: f32,
 }
 
 pub trait Crossover {
-    fn crossover(&self, rng: &mut impl Rng, fit: f32, other: &Self, other_fit: f32) -> Self;
+    fn crossover(&self, rng: &mut dyn RngCore, fit: f32, other: &Self, other_fit: f32) -> Self;
 }
 
 pub trait CrossoverMethod {
-    fn crossover_method(&self, rng: &mut impl Rng, parent_a: &Item, parent_b: &Item) -> Genome;
+    fn crossover_method(&self, rng: &mut dyn RngCore, parent_a: &Item, parent_b: &Item) -> Genome;
 }
 
 fn merge<'a, T: Crossover + Ord + 'a + Clone>(
     fst: impl Iterator<Item = &'a T>,
     snd: impl Iterator<Item = &'a T>,
-    rng: &mut impl Rng,
+    rng: &mut dyn RngCore,
     fit_fst: f32,
     fit_snd: f32,
 ) -> Vec<T> {
@@ -59,7 +59,7 @@ pub struct OrderedNode {
 }
 
 impl Crossover for OrderedNode {
-    fn crossover(&self, rng: &mut impl Rng, fit: f32, other: &Self, other_fit: f32) -> Self {
+    fn crossover(&self, rng: &mut dyn RngCore, fit: f32, other: &Self, other_fit: f32) -> Self {
         OrderedNode {
             node: self.node.crossover(rng, fit, &other.node, other_fit),
         }
@@ -87,7 +87,7 @@ impl Ord for OrderedNode {
 }
 
 impl Crossover for NodeList {
-    fn crossover(&self, rng: &mut impl Rng, fit: f32, other: &Self, other_fit: f32) -> Self {
+    fn crossover(&self, rng: &mut dyn RngCore, fit: f32, other: &Self, other_fit: f32) -> Self {
         Self {
             input: self.input.clone(),
             output: self.output.clone(),
@@ -96,9 +96,9 @@ impl Crossover for NodeList {
     }
 }
 
-impl Crossover for Vec<GenomeEdge> {
-    fn crossover(&self, rng: &mut impl Rng, fit: f32, other: &Self, other_fit: f32) -> Self {
-        todo!()
+impl Crossover for OrderedGenomeList {
+    fn crossover(&self, rng: &mut dyn RngCore, fit: f32, other: &Self, other_fit: f32) -> Self {
+        Self::new_sorted(merge(self.iter(), other.iter(), rng, fit, other_fit).into_iter())
     }
 }
 
@@ -107,7 +107,7 @@ pub struct NeatCrossover;
 impl CrossoverMethod for NeatCrossover {
     fn crossover_method(
         &self,
-        rng: &mut impl Rng,
+        rng: &mut dyn RngCore,
         Item {
             item: item_a,
             fitness: fit_a,

@@ -4,7 +4,7 @@ use rand::{seq::SliceRandom, RngCore};
 use crate::individual::individual::Individual;
 
 pub trait SelectionMethod {
-    fn select<'a, 'b , I>(&self, rng: &mut dyn RngCore, population: &'a [&'b I]) -> &'b I
+    fn select<'a, 'b, I>(&self, rng: &mut dyn RngCore, population: &'a [&'b I]) -> &'b I
     where
         I: Individual;
 }
@@ -19,7 +19,7 @@ impl RoulleteSelection {
 }
 
 impl SelectionMethod for RoulleteSelection {
-    fn select<'a, 'b , I>(&self, rng: &mut dyn RngCore, population: &'a [&'b I]) -> &'b I
+    fn select<'a, 'b, I>(&self, rng: &mut dyn RngCore, population: &'a [&'b I]) -> &'b I
     where
         I: Individual,
     {
@@ -58,6 +58,10 @@ mod tests {
         fn fitness(&self) -> f32 {
             self.fitness
         }
+
+        fn to_genome(&self) -> crate::individual::genome::genome::Genome {
+            unimplemented!("Should not be implemented")
+        }
     }
 
     #[test]
@@ -75,11 +79,17 @@ mod tests {
         let mut actual_histogram = BTreeMap::new();
 
         for _ in 0..10_000 {
-            let fitness = method.select(&mut rng, &population.iter().collect_vec()).fitness() as i32;
+            let fitness = method
+                .select(&mut rng, &population.iter().collect_vec())
+                .fitness() as i32;
             *actual_histogram.entry(fitness).or_insert(0) += 1;
         }
 
-        let els = actual_histogram.iter().sorted_by(|(_,a2),(_,b2)| a2.cmp(b2)).map(|(x,_)| (*x)).collect_vec();
-        assert_eq!(els, vec![1,2,3,4]);
+        let els = actual_histogram
+            .iter()
+            .sorted_by(|(_, a2), (_, b2)| a2.cmp(b2))
+            .map(|(x, _)| (*x))
+            .collect_vec();
+        assert_eq!(els, vec![1, 2, 3, 4]);
     }
 }

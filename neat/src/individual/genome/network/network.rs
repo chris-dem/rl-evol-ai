@@ -171,48 +171,56 @@ mod tests {
         let weights = [0.5; 8];
         let edges = vec![
             GenomeEdge {
+                innov_number: 0,
                 in_node: 0,
                 out_node: 2,
                 weight: weights[0],
                 enabled: true,
             },
             GenomeEdge {
+                innov_number: 1,
                 in_node: 1,
                 out_node: 2,
                 weight: weights[1],
                 enabled: true,
             },
             GenomeEdge {
+                innov_number: 2,
                 in_node: 0,
                 out_node: 3,
                 weight: weights[2],
                 enabled: true,
             },
             GenomeEdge {
+                innov_number: 0,
                 in_node: 1,
                 out_node: 3,
                 weight: weights[3],
                 enabled: true,
             },
             GenomeEdge {
+                innov_number: 0,
                 in_node: 0,
                 out_node: 4,
                 weight: weights[4],
                 enabled: true,
             },
             GenomeEdge {
+                innov_number: 0,
                 in_node: 1,
                 out_node: 4,
                 weight: weights[5],
                 enabled: true,
             },
             GenomeEdge {
+                innov_number: 0,
                 in_node: 0,
                 out_node: 5,
                 weight: weights[6],
                 enabled: true,
             },
             GenomeEdge {
+                innov_number: 0,
                 in_node: 1,
                 out_node: 5,
                 weight: weights[7],
@@ -271,32 +279,31 @@ mod tests {
                     out_node: 2,
                     weight: weights[0],
                     enabled: true,
+                    innov_number: 0,
                 },
                 GenomeEdge {
-                    in_node: 0,
-                    out_node: 4,
-                    weight: weights[1],
-                    enabled: true,
-                },
-                GenomeEdge {
+                    innov_number: 1,
                     in_node: 1,
                     out_node: 3,
                     weight: weights[2],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 2,
                     in_node: 1,
                     out_node: 5,
                     weight: weights[3],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 3,
                     in_node: 4,
                     out_node: 2,
                     weight: weights[4],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 4,
                     in_node: 5,
                     out_node: 3,
                     weight: weights[5],
@@ -355,30 +362,35 @@ mod tests {
             let weights = [2., 2., 2., 2., -0.5];
             let edges = vec![
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 0,
                     out_node: 4,
                     weight: weights[0],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 1,
                     out_node: 4,
                     weight: weights[1],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 4,
                     out_node: 2,
                     weight: weights[2],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 4,
                     out_node: 3,
                     weight: weights[3],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 3,
                     out_node: 4,
                     weight: weights[4],
@@ -450,42 +462,49 @@ mod tests {
             let weights = [0.5; 7];
             let edges = vec![
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 0,
                     out_node: 3,
                     weight: weights[0],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 1,
                     out_node: 4,
                     weight: weights[1],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 4,
                     out_node: 5,
                     weight: weights[2],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 3,
                     out_node: 5,
                     weight: weights[3],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 5,
                     out_node: 4,
                     weight: weights[4],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 3,
                     out_node: 2,
                     weight: weights[5],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 5,
                     out_node: 2,
                     weight: weights[6],
@@ -562,36 +581,42 @@ mod tests {
             let weights = [2.; 8];
             let edges = vec![
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 0,
                     out_node: 2,
                     weight: weights[0],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 0,
                     out_node: 6,
                     weight: weights[1],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 1,
                     out_node: 3,
                     weight: weights[2],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 1,
                     out_node: 7,
                     weight: weights[3],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 6,
                     out_node: 2,
                     weight: weights[4],
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 0,
                     in_node: 7,
                     out_node: 3,
                     weight: weights[5],
