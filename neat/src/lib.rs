@@ -10,6 +10,7 @@ mod crossover;
 mod individual;
 mod selection;
 mod speciation;
+mod mutation;
 
 pub struct GeneticAlgortihm<Spe, Sel> {
     speciation: Spe,

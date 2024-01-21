@@ -2,6 +2,7 @@
     "rust-analyzer.linkedProjects": [
         ".\\neat\\Cargo.toml",
         ".\\neat\\Cargo.toml",
+        ".\\neat\\Cargo.toml",
         ".\\neat\\Cargo.toml"
     ]
 }

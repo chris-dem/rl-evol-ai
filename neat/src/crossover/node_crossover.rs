@@ -3,7 +3,7 @@ use rand::{Rng, RngCore};
 
 use crate::individual::genome::{
     genome::GenomeEdge,
-    node_list::{Activation, Aggregation, Clamp, Config, Node},
+    node_list::{Config, Node}, clamp::Clamp, activation::Activation, aggregation::Aggregation,
 };
 
 use super::{crossover::Crossover, misc_crossover::CrossoverMisc};
@@ -110,6 +110,7 @@ impl Crossover for Aggregation {
         }
     }
 }
+
 impl Crossover for Clamp {
     fn crossover(&self, rng: &mut dyn RngCore, fit: f32, other: &Self, other_fit: f32) -> Self {
         self.from_floats(

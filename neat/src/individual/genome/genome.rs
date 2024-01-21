@@ -17,7 +17,7 @@ const MAX_RATIO: usize = 100;
 #[derive(Debug, Clone)]
 pub struct GenomeFactory {
     input_list: Arc<[Node]>,
-    output_list: Arc<[Node]>,
+    output_list: Vec<Node>,
 }
 
 pub enum GenonomeError {
@@ -35,7 +35,7 @@ impl GenomeFactory {
                 .take(input)
                 .map(|id| Node::new(id, Ratio::from_integer(MIN_RATIO), None)),
         );
-        let output_list: Arc<_> = Arc::from_iter(
+        let output_list = Vec::from_iter(
             id_generator.map(|id| Node::new(id, Ratio::from_integer(MAX_RATIO), None)),
         );
         Ok(Self {
@@ -46,7 +46,7 @@ impl GenomeFactory {
     pub fn generate_genome(&self) -> Genome {
         let node_list = NodeList {
             input: Arc::clone(&self.input_list),
-            output: Arc::clone(&self.output_list),
+            output: Vec::clone(&self.output_list),
             hidden: vec![],
         };
         Genome::new(node_list, vec![])
@@ -88,7 +88,7 @@ impl Ord for GenomeEdge {
 }
 
 pub struct OrderedGenomeList {
-    edge_list: Vec<GenomeEdge>,
+    pub edge_list: Vec<GenomeEdge>,
 }
 
 impl OrderedGenomeList {

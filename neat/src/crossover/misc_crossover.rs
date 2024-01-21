@@ -1,6 +1,6 @@
 use rand::{prelude::Rng, RngCore};
 
-use crate::individual::genome::node_list::{Activate, Activation};
+use crate::individual::genome::{node_list::Activate, activation::Activation};
 
 const DEFAULT_RANGE: f32 = 5.;
 

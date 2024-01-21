@@ -158,7 +158,7 @@ impl FFNetwork {
 
 #[cfg(test)]
 mod tests {
-    use crate::individual::genome::node_list::{Activate, Activation, Node};
+    use crate::individual::genome::{node_list::{Node, Activate}, activation::Activation};
     use std::sync::Arc;
 
     use super::*;
@@ -237,7 +237,7 @@ mod tests {
                     })
                     .into_iter(),
             ),
-            output: Arc::from_iter(
+            output: Vec::from_iter(
                 [2, 3, 4, 5]
                     .map(|c| Node {
                         node_id: c,
@@ -320,7 +320,7 @@ mod tests {
                         })
                         .into_iter(),
                 ),
-                output: Arc::from_iter(
+                output: Vec::from_iter(
                     [2, 3]
                         .map(|c| Node {
                             node_id: c,
@@ -407,7 +407,7 @@ mod tests {
                         })
                         .into_iter(),
                 ),
-                output: Arc::from_iter(
+                output: Vec::from_iter(
                     [2, 3]
                         .map(|c| Node {
                             node_id: c,
@@ -521,7 +521,7 @@ mod tests {
                         })
                         .into_iter(),
                 ),
-                output: Arc::from_iter(
+                output: Vec::from_iter(
                     [2].map(|c| Node {
                         node_id: c,
                         level: Ratio::from_integer(100),
@@ -633,7 +633,7 @@ mod tests {
                         })
                         .into_iter(),
                 ),
-                output: Arc::from_iter(
+                output: Vec::from_iter(
                     [2, 3]
                         .map(|c| Node {
                             node_id: c,
