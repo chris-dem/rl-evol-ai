@@ -23,8 +23,7 @@ impl SelectionMethod for RoulleteSelection {
     where
         I: Individual,
     {
-        let weights = population.iter().map(|s| s.fitness()).collect_vec();
-        let total_weight = weights.iter().sum::<f32>();
+        let total_weight = population.iter().map(|s| s.fitness()).sum::<f32>();
         population
             .choose_weighted(rng, |el| el.fitness() / total_weight)
             .expect("should not surpass")
@@ -60,7 +59,7 @@ mod tests {
         }
 
         fn to_genome(&self) -> crate::individual::genome::genome::Genome {
-            unimplemented!("Should not be implemented")
+            unimplemented!("No need to be implemeneted")
         }
     }
 

@@ -18,10 +18,12 @@ pub enum Activation {
     Selu(f32, f32),
     Sigmoid,
     Sin,
+    Cos,
     Tanh,
     Softplus(f32),
     Gelu,
     Root,
+    Periodic(f32),
 }
 
 impl Activate for Activation {
@@ -46,10 +48,12 @@ impl Activate for Activation {
             }
             Activation::Sigmoid => 1. / (1. + (-input).exp()), // 1 / (1 + e^(-x))
             Activation::Sin => input.sin(),                    // sin x
+            Activation::Cos => input.cos(),                    // cos x
             Activation::Tanh => input.tanh(),                  // tanh x
             Activation::Softplus(beta) => beta.recip() * (1. + (input * beta).exp()).ln(), // (1 / beta) * ln(1. + exp(x * beta))
             Activation::Gelu => ((input as f64 / 2.0_f64.sqrt()).erf() as f32 + 1.) * 0.5 * input, // x/2 (1 + erf(x / sqrt(2)))
             Activation::Root => (input * input + 1.).sqrt(),
+            Activation::Periodic(p ) => (input - p * (input / (p + f32::EPSILON)).floor()) - p / 2.
         }
     }
 }

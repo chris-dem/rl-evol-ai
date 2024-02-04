@@ -1,6 +1,6 @@
 use super::mem_cell::MemoryCellType;
 use crate::individual::genome::{
-    genome::GenomeEdge, network::mem_cell::MemoryCell, node_list::NodeList,
+    genome::GenomeEdge, network::mem_cell::MemoryCell, node_list::{LevelNode, Node, NodeList},
 };
 use itertools::Itertools;
 use std::{cmp::Reverse, collections::BinaryHeap};
@@ -117,9 +117,11 @@ impl FFNetwork {
             self.memory[0..self.lengths.input]
                 .iter()
                 .map(MemoryCellType::get_node)
+                .map(|a| a.into_level())
                 .map(Reverse),
         );
-        while let Some(Reverse(head)) = queue.pop() {
+        while let Some(Reverse(LevelNode(head))) = queue.pop() {
+
             let head_id = head;
             let head_idx = get_mem_location(&self.memory, head_id.node_id);
             if self.is_hidden(head_id.node_id) {
@@ -142,7 +144,7 @@ impl FFNetwork {
                     .expect("This must be a forward conneciton therefore we caluclated the output");
                 self.memory[index].propagate_input(input * weight);
                 if self.memory[index].was_not_passed_set(self.pass) {
-                    queue.push(Reverse(self.memory[index].get_node()));
+                    queue.push(Reverse(self.memory[index].get_node().into_level()));
                 }
             }
         }

@@ -1,7 +1,6 @@
-use std::{collections::BTreeSet as TreeSet, io::Read};
+use std::collections::BTreeSet as TreeSet;
 
 use itertools::Itertools;
-use num::Float;
 use rand::prelude::*;
 
 use crate::individual::genome::{genome::{Genome, GenomeEdge}, node_list::{Node, Config}, clamp::Clamp, aggregation::Aggregation, activation::Activation};

@@ -41,3 +41,20 @@ impl Aggregation {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+
+    
+    #[test]
+    fn test_aggregations() {
+        const DATA : [f32; 5] = [1., 2., 3., 4., 5.];
+        assert_relative_eq!(Aggregation::Sum.apply(DATA.iter().copied()), 15.);
+        assert_relative_eq!(Aggregation::Max.apply(DATA.iter().copied()), 5.);
+        assert_relative_eq!(Aggregation::Mean.apply(DATA.iter().copied()), 3.);
+        assert_relative_eq!(Aggregation::L2NormAvg.apply(DATA.iter().copied()), DATA.iter().map(|x| x * x).sum::<f32>().sqrt() / DATA.len() as f32);
+        assert_relative_eq!(Aggregation::L1NormAvg.apply(DATA.iter().copied()), DATA.iter().map(|x| x.abs()).sum::<f32>() / DATA.len() as f32);
+    }
+}

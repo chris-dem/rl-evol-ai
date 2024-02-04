@@ -1,8 +1,8 @@
-use rand::{Rng, RngCore};
+use rand::RngCore;
 
 use crate::individual::genome::{
-    genome::{Genome, GenomeEdge, OrderedGenomeList},
-    node_list::{Config, Node, NodeList},
+    genome::{Genome, OrderedGenomeList},
+    node_list::{Node, NodeList},
 };
 
 pub struct Item {
@@ -51,39 +51,6 @@ fn merge<'a, T: Crossover + Ord + 'a + Clone>(
     ret.append(&mut (fst_peek.cloned().collect()));
     ret.append(&mut (snd_peek.cloned().collect()));
     ret
-}
-
-#[derive(Debug, Clone)]
-pub struct OrderedNode {
-    node: Node,
-}
-
-impl Crossover for OrderedNode {
-    fn crossover(&self, rng: &mut dyn RngCore, fit: f32, other: &Self, other_fit: f32) -> Self {
-        OrderedNode {
-            node: self.node.crossover(rng, fit, &other.node, other_fit),
-        }
-    }
-}
-
-impl PartialEq for OrderedNode {
-    fn eq(&self, other: &Self) -> bool {
-        self.node.node_id == other.node.node_id
-    }
-}
-
-impl Eq for OrderedNode {}
-
-impl PartialOrd for OrderedNode {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.node.node_id.partial_cmp(&other.node.node_id)
-    }
-}
-
-impl Ord for OrderedNode {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.node.node_id.cmp(&other.node.node_id)
-    }
 }
 
 impl Crossover for NodeList {

@@ -84,6 +84,7 @@ impl FloatList for Activation {
         match self {
             Activation::Selu(a, b) => vec![*a, *b],
             Activation::Softplus(a) => vec![*a],
+            Activation::Periodic(a) => vec![*a],
             _ => vec![],
         }
     }
@@ -95,6 +96,7 @@ impl FloatList for Activation {
         Some(match self {
             Activation::Selu(_, _) => Activation::Selu(chromes.next()?, chromes.next()?),
             Activation::Softplus(_) => Activation::Softplus(chromes.next()?),
+            Activation::Periodic(_) => Activation::Periodic(chromes.next()?.abs()),
             r => *r,
         })
     }

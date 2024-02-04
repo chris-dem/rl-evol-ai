@@ -107,6 +107,7 @@ impl OrderedGenomeList {
         self.edge_list.iter_mut()
     }
 
+    /// Create new OrderedGenomeList without checking for sorting
     pub fn new_sorted(genome_list: impl Iterator<Item = GenomeEdge>) -> Self {
         let edge_list = genome_list.collect_vec();
         assert!(edge_list.windows(2).all(|a| a[0].cmp(&a[1]).is_le()));
