@@ -32,7 +32,7 @@ struct Edge {
 fn get_mem_location(memory: &[MemoryCellType], item: usize) -> usize {
     memory
         .binary_search_by_key(&item, |cell| cell.get_node().node_id)
-        .expect("Id should be in list")
+        .expect(format!("Id {item:?} should be in list").as_str())
 }
 
 impl FFNetwork {
@@ -121,11 +121,10 @@ impl FFNetwork {
                 .map(Reverse),
         );
         while let Some(Reverse(LevelNode(head))) = queue.pop() {
-
             let head_id = head;
             let head_idx = get_mem_location(&self.memory, head_id.node_id);
             if self.is_hidden(head_id.node_id) {
-                for v in self.back_map[self.translate_hidden(head_idx)]
+                for v in self.back_map[self.translate_hidden(head.node_id)]
                     .iter()
                     .copied()
                 {
@@ -138,7 +137,6 @@ impl FFNetwork {
             self.memory[head_idx].activate(self.pass);
             for Edge { dest, weight } in self.edge_map[head_idx].iter().copied() {
                 let index = get_mem_location(&self.memory, dest);
-                let target_cell = self.memory[index].get_node();
                 let input = self.memory[head_idx]
                     .get_current_output(self.pass)
                     .expect("This must be a forward conneciton therefore we caluclated the output");
@@ -194,7 +192,7 @@ mod tests {
                 enabled: true,
             },
             GenomeEdge {
-                innov_number: 0,
+                innov_number: 3,
                 in_node: 1,
                 out_node: 3,
                 weight: weights[3],
@@ -291,6 +289,13 @@ mod tests {
                     enabled: true,
                 },
                 GenomeEdge {
+                    innov_number: 1,
+                    in_node: 0,
+                    out_node: 4,
+                    weight: weights[2],
+                    enabled: true,
+                },
+                GenomeEdge {
                     innov_number: 2,
                     in_node: 1,
                     out_node: 5,
@@ -343,7 +348,7 @@ mod tests {
             let mut genome = FFNetwork::new(node_list, edges);
             let outputs = vec![0.3, 1.5];
             let output_genome = genome.forward(&vec![x1, x2]);
-            assert!(dbg!(outputs)
+            assert!(outputs
                 .iter()
                 .copied()
                 .zip_eq(
