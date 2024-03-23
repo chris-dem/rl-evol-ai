@@ -1,9 +1,12 @@
 use itertools::Itertools;
-use rand::{Rng, RngCore};
+use rand::RngCore;
 
 use crate::individual::genome::{
+    activation::Activation,
+    aggregation::Aggregation,
+    clamp::Clamp,
     genome::GenomeEdge,
-    node_list::{Config, Node}, clamp::Clamp, activation::Activation, aggregation::Aggregation,
+    node_list::{Config, Node},
 };
 
 use super::{crossover::Crossover, misc_crossover::CrossoverMisc};
@@ -82,7 +85,6 @@ impl FloatList for Activation {
 
     fn to_floats(&self) -> Vec<f32> {
         match self {
-            Activation::Selu(a, b) => vec![*a, *b],
             Activation::Softplus(a) => vec![*a],
             Activation::Periodic(a) => vec![*a],
             _ => vec![],
@@ -94,7 +96,6 @@ impl FloatList for Activation {
         mut chromes: impl Iterator<Item = Self::Item>,
     ) -> Option<Self::SelfItem> {
         Some(match self {
-            Activation::Selu(_, _) => Activation::Selu(chromes.next()?, chromes.next()?),
             Activation::Softplus(_) => Activation::Softplus(chromes.next()?),
             Activation::Periodic(_) => Activation::Periodic(chromes.next()?.abs()),
             r => *r,
@@ -121,7 +122,20 @@ impl Crossover for Clamp {
                 .zip_eq(other.to_floats().into_iter())
                 .map(|(a, b)| match (a, b) {
                     (None, None) => None,
-                    (Some(a), None) | (None, Some(a)) => Some(a),
+                    (Some(a), None) => CrossoverMisc::default().bernoulli_crossover(
+                        rng,
+                        Some(a),
+                        fit,
+                        None,
+                        other_fit,
+                    ),
+                    (None, Some(b)) => CrossoverMisc::default().bernoulli_crossover(
+                        rng,
+                        None,
+                        fit,
+                        Some(b),
+                        other_fit,
+                    ),
                     (Some(a), Some(b)) => {
                         Some(CrossoverMisc::default().f32_crossover(rng, a, fit, b, other_fit))
                     }
@@ -165,5 +179,68 @@ impl Crossover for GenomeEdge {
                 other_fit,
             ),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha8Rng;
+    use proptest::prelude::*;
+
+    use super::*;
+
+    mod clamp_crossover {
+
+        use approx::{Relative, RelativeEq};
+
+        use super::*;
+
+        fn compare_relative(l : f32, h: f32, prod : f32) -> (f32,f32) {
+            let diff_1 = (prod - l).abs();
+            let diff_2 = (prod - h).abs();
+            (diff_1, diff_2)
+        }
+
+        proptest! {
+            #[test]
+            fn test_node_clamp(
+                lims_1 in any::<(f32,f32)>().prop_filter("First limits", |a| a.0 < a.1),
+                lims_2 in any::<(f32,f32)>().prop_filter("Second limits", |a| a.0 < a.1),
+                perf_1 in any::<f32>(), perf_2 in any::<f32>(),
+            ) {
+                let mut rng = ChaCha8Rng::seed_from_u64(32);
+                let clamp_1 = Clamp::new(Some(lims_1.0), Some(lims_1.1)).unwrap();
+                let clamp_2 = Clamp::new(Some(lims_2.0), Some(lims_2.1)).unwrap();
+                let mut count_min = 0;
+                let mut count_max = 0;
+                for _ in 0..1_000 {
+                    let res = clamp_1.crossover(&mut rng, perf_1, &clamp_2, perf_2);
+                    let res_min = compare_relative(clamp_1.min_limit.unwrap(), clamp_2.min_limit.unwrap(), res.min_limit.unwrap());
+                    let res_max = compare_relative(clamp_1.max_limit.unwrap(), clamp_2.max_limit.unwrap(), res.max_limit.unwrap());
+                    count_min += {
+                        if Relative::default().eq(&perf_1,  &perf_2) { // if they are equal
+                            (lims_1.0.min(lims_2.0) <= res.min_limit.unwrap() && lims_1.0.max(lims_2.0) >= res.min_limit.unwrap()) as u8
+                        } else {
+                            ((perf_1 <= perf_2) as u8 ^ (res_min.0 > res_min.1) as u8) | (res_min.0 == res_min.1) as u8
+                        }
+                    } as usize;
+                    count_max += {
+                        if Relative::default().eq(&perf_1,  &perf_2) { // if they are equal
+                            (lims_1.1.min(lims_2.1) <= res.max_limit.unwrap() && lims_1.1.max(lims_2.1) >= res.max_limit.unwrap()) as u8
+                        } else {
+                            ((perf_1 <= perf_2) as u8 ^ (res_max.0 > res_max.1) as u8) | (res_max.0 == res_max.1) as u8
+                        }
+                    } as usize;
+                }
+                assert!(dbg!(count_min) as f64 / 1_000f64 > 0.5_f64);
+                assert!(dbg!(count_max) as f64 / 1_000f64 > 0.5_f64);
+            }
+        }
+
+        // #[test]
+        // fn test_node_clamp() {
+            
+        // }
     }
 }

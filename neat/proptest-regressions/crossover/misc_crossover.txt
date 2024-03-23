@@ -1,0 +1,14 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 0c25b95bd6b53962484cd77e4ab9f6a7bd4c09db2b9d12a628ad4390d9896144 # shrinks to a = -0.0, wa = 0.0, b = 0.0, wb = 0.0
+cc 518024843f5076ee4d8be0176df9036d88363d7e9f2937f5a164d41f60eea3c3 # shrinks to a = 0.0, wa = -3.9805794e-36, b = -1.4873673e-29, wb = -0.0
+cc e0379870467743069c3ccb82684703acc59696f47f71465ac33ccfdcd3db7fc0 # shrinks to a = 0.0, wa = -0.0009422028, b = -6.292398e26, wb = 0.0
+cc 10a1f5a67e56dc8be81ca4892d1d67e9beb17eedbd7f2ded290753c5b49f8c54 # shrinks to a = 0.0, wa = 0.0, b = 0.0, wb = 3.9872916e36
+cc 9a276e419168736e80b7701b018a3b0014f6af3effdb401810104c131e5e24a0 # shrinks to a = 0.0, wa = 3.0941074, b = 9.1374135e21, wb = -0.0
+cc a13e8ea38a13c2bf5a2c7657d4d912b84e4a38ab951f7ac6f3995e7c326626ed # shrinks to wa = -0.7525561, wb = -0.0
+cc cba0c5bff84368626eab8ab0f262e5fc40e81591250ec14b38d42fa11ee07ff9 # shrinks to wa = 0.71978474, wb = 0.0
+cc 5acd89a20739b283459c5ca72660323189d1a8ba38752dd959ca8bad28c2f5f6 # shrinks to wa = -1969.4741, wb = 0.0

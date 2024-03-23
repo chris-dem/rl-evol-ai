@@ -1,11 +1,10 @@
 use std::collections::BTreeSet as TreeSet;
-
 use itertools::Itertools;
 use rand::prelude::*;
-
 use crate::individual::genome::{genome::{Genome, GenomeEdge}, node_list::{Node, Config}, clamp::Clamp, aggregation::Aggregation, activation::Activation};
-
 use super::innovation_number::InnovNumber;
+
+// TODO: Consider different mutation methods
 
 pub trait MutationMethod {
     fn mutate(&self, rng: &mut dyn RngCore, child: &mut Genome , innov_number: &mut InnovNumber);
@@ -44,7 +43,6 @@ pub struct GaussianMutation {
 
 impl Default for GaussianMutation {
     fn default() -> Self {
-        let a= 0.5;
         Self {
             prob:  ProbabilityMatrix {
                 node_probs: ProbabilityMatrixNode{
@@ -72,7 +70,7 @@ impl GaussianMutation {
 }
 
 fn weight_mutation(rng: &mut dyn RngCore, coeff: f32) -> f32 {
-    (rng.gen::<f32>() * 2. - 1.) * coeff
+    (rng.gen::<f32>() * 4. - 2.) * coeff
 }
 
 pub trait Mutation {
@@ -95,42 +93,55 @@ impl Mutation for Aggregation {
 impl Mutation for Activation {
     fn mutate(&mut self, rng: &mut dyn RngCore) {
         *self = match rng.gen::<Activation>() {
-            Activation::Softplus(_) => Activation::Softplus(weight_mutation(rng, 1.)),
-            Activation::Selu(_,_) => Activation::Selu(weight_mutation(rng, 1.),weight_mutation(rng, 1.)),
+            Activation::Softplus(x) => Activation::Softplus(x + weight_mutation(rng, 1.)),
+            Activation::Periodic(a) => Activation::Periodic(a + weight_mutation(rng, 1.)),
             v => v
         }
     }
 }
 
+impl GaussianMutation {
+
+  fn mutate_nodes<'a>(&self, rng : &mut dyn RngCore, node_list : impl Iterator<Item = &'a mut Node>) {
+    let prob_node = self.prob.node_probs;
+    for Node {config, ..} in node_list {
+      // Mutate 
+      if rng.gen_bool(prob_node.prob_clamp) {
+        config.clamp.mutate(rng)
+      }
+      if rng.gen_bool(prob_node.prob_aggregation) {
+          config.aggregation.mutate(rng);
+      }
+      if rng.gen_bool(prob_node.prob_activation) {
+          config.activation.mutate(rng);
+      }
+    }
+  }
+
+  fn mutate_edges<'a>(&self, rng : &mut dyn RngCore, edge_list : impl Iterator<Item = &'a mut GenomeEdge>) {
+    let prob_edge = self.prob.prob_edge;
+    // Weight mutation
+    for v in edge_list {
+      if rng.gen_bool(prob_edge.prob_enabled) {
+        v.enabled = !v.enabled;
+      }
+      
+        if rng.gen_bool(prob_edge.prob_weight) {
+            v.weight += weight_mutation(rng, self.coeff);
+        }
+    }
+  }
+}
+
 impl MutationMethod for GaussianMutation {
     fn mutate(&self, rng: &mut dyn RngCore, Genome {genome_list, node_list}: &mut Genome, innov_number : &mut InnovNumber) {
-        let prob_node = self.prob.node_probs;
-        for Node {config, ..} in node_list.hidden.iter_mut().chain(node_list.output.iter_mut()) {
-            // Mutate 
-            if rng.gen_bool(prob_node.prob_clamp) {
-                config.clamp.mutate(rng)
-            }
-            if rng.gen_bool(prob_node.prob_aggregation) {
-                config.aggregation.mutate(rng);
-            }
-            if rng.gen_bool(prob_node.prob_activation) {
-                config.activation.mutate(rng);
-            }
-        }
-        let prob_edge = self.prob.prob_edge;
-        // Weight mutation
-        for v in genome_list.iter_mut() {
-            if rng.gen_bool(prob_edge.prob_enabled) {
-                v.enabled = !v.enabled;
-            }
-
-            if rng.gen_bool(prob_edge.prob_weight) {
-                v.weight += weight_mutation(rng, self.coeff);
-            }
-        }
+        self.mutate_nodes(rng, node_list.hidden.iter_mut().chain(node_list.output.iter_mut().chain(node_list.input.iter_mut())));
+        self.mutate_edges(rng, genome_list.edge_list.iter_mut());
+        
         let concated_list = [node_list.input.iter(),node_list.output.iter(), node_list.hidden.iter()].into_iter().flatten().collect_vec();
         // Topological mutations
-        if rng.gen_bool(prob_edge.prob_new_node) {
+        // Clean up and test
+        if rng.gen_bool(self.prob.prob_edge.prob_new_node) {
             let edge = genome_list
                         .iter_mut()
                         .choose(rng)

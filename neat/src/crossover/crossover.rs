@@ -2,8 +2,10 @@ use rand::RngCore;
 
 use crate::individual::genome::{
     genome::{Genome, OrderedGenomeList},
-    node_list::{Node, NodeList},
+    node_list::NodeList,
 };
+
+use super::misc_crossover::CrossoverMisc;
 
 pub struct Item {
     pub item: Genome,
@@ -36,10 +38,10 @@ fn merge<'a, T: Crossover + Ord + 'a + Clone>(
                 std::cmp::Ordering::Less => {
                     ret.push(fst_peek.next().expect("Was peeked").clone());
                 }
-                std::cmp::Ordering::Equal => {
+                std::cmp::Ordering::Greater => {
                     ret.push(snd_peek.next().expect("Was peeked").clone());
                 }
-                std::cmp::Ordering::Greater => {
+                std::cmp::Ordering::Equal => {
                     let fst_el = fst_peek.next().expect("Was peeked");
                     let snd_el = snd_peek.next().expect("Was peeked");
                     ret.push(fst_el.crossover(rng, fit_fst, snd_el, fit_snd));
@@ -69,7 +71,23 @@ impl Crossover for OrderedGenomeList {
     }
 }
 
-pub struct NeatCrossover;
+#[derive(Clone, Copy)]
+pub struct NeatCrossover {
+  pub crossover_misc : CrossoverMisc,
+}
+
+impl NeatCrossover {
+  pub fn new(crossover_misc: CrossoverMisc) -> Self {
+    Self { crossover_misc }
+  }
+}
+
+impl Default for NeatCrossover {
+    fn default() -> Self {
+        Self { crossover_misc: CrossoverMisc::default() }
+    }
+}
+
 
 impl CrossoverMethod for NeatCrossover {
     fn crossover_method(
@@ -100,10 +118,101 @@ impl CrossoverMethod for NeatCrossover {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use rand_chacha::ChaCha8Core;
+mod crossover_tests {
+  use super::*;
+  use proptest::{array::*, prelude::*};
+  use itertools::Itertools;
 
+  #[derive(Debug, Clone, Copy, Hash)]
+  struct TestCrossover(pub i32, pub i32);
+
+  impl PartialEq for TestCrossover {
+    fn eq(&self, other: &Self) -> bool {
+      self.0 == other.0
+    }
+  }
+
+  impl Eq for TestCrossover {}
+
+  impl PartialOrd for TestCrossover {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+      Some(self.0.cmp(&other.0))
+    }
+  }
+
+  impl Ord for TestCrossover {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+      self.0.cmp(&other.0)
+    }
+  }
+
+  impl Crossover for TestCrossover {
+    fn crossover(&self, _rng: &mut dyn RngCore, fit: f32, other: &Self, other_fit: f32) -> Self {
+      if fit > other_fit {
+        *self
+      } else if fit < other_fit {
+        *other
+      } else {
+        TestCrossover(self.0, self.1.max(other.1))
+      }
+    }
+  }
+
+  proptest! {
     #[test]
-    fn crossover_genomes() {}
+    fn test_merge_no_conflict(
+      a in any::<f32>(),
+      b in any::<f32>(),
+      items in (uniform32(any::<(i32, i32)>()), uniform32(any::<(i32, i32)>()))
+        .prop_filter("should have unique elements",
+        |(el1,el2)| el1.iter().chain(el2.iter()).map(|(a,b)| TestCrossover(*a,*b)).all_unique())
+        .prop_map(|(el1,el2)| (el1.into_iter().map(|(a,b)| TestCrossover(a,b)).sorted().collect::<Vec<_>>(), el2.into_iter().map(|(a,b)| TestCrossover(a,b)).sorted().collect::<Vec<_>>()))
+    ) {
+        let mut rng = rand::thread_rng();
+        let (fst, snd) = items;
+        let m = merge(fst.iter(), snd.iter(), &mut rng, a, b);
+        let v1 = fst.iter().chain(snd.iter()).sorted().copied().collect_vec();
+        
+        assert!(m.iter().copied().zip(v1.iter().copied())
+          .all(|(a,b)| a == b), "Assertion: {m:?} {v1:?}");
+    }
+  
+    #[test]
+    fn test_merge_no_conflict_unequal_size(
+      a in any::<f32>(),
+      b in any::<f32>(),
+      items in (uniform16(any::<(i32, i32)>()), uniform32(any::<(i32, i32)>()))
+        .prop_filter("should have unique elements",
+        |(el1,el2)| el1.iter().chain(el2.iter()).map(|(a,b)| TestCrossover(*a,*b)).all_unique())
+        .prop_map(|(el1,el2)| (el1.into_iter().map(|(a,b)| TestCrossover(a,b)).sorted().collect::<Vec<_>>(), el2.into_iter().map(|(a,b)| TestCrossover(a,b)).sorted().collect::<Vec<_>>()))
+    ) {
+        let mut rng = rand::thread_rng();
+        let (fst, snd) = items;
+        let m = merge(fst.iter(), snd.iter(), &mut rng, a, b);
+        let v1 = fst.iter().chain(snd.iter()).sorted().copied().collect_vec();
+        
+        assert!(m.iter().copied().zip(v1.iter().copied())
+          .all(|(a,b)| a == b), "Assertion: {m:?} {v1:?}");
+    }
+    
+    #[test]
+    fn test_merge_all_conflict(
+      a in any::<f32>(),
+      b in any::<f32>(),
+      items in (uniform4(any::<i32>()), uniform4(any::<i32>()))
+        .prop_map(|(el1,el2)| (
+          el1.into_iter().enumerate().map(|(ind,a)| TestCrossover(ind as i32,a)).sorted().collect::<Vec<_>>(),
+          el2.into_iter().enumerate().map(|(ind,a)| TestCrossover(ind as i32,a)).sorted().collect::<Vec<_>>())
+    )) {
+        let mut rng = rand::thread_rng();
+        let (fst, snd) = items;
+        let m = merge(fst.iter(), snd.iter(), &mut rng, a, b);
+        let expected = match a.partial_cmp(&b).unwrap() {
+          std::cmp::Ordering::Less => snd.clone(),
+          std::cmp::Ordering::Greater => fst.clone(),
+          std::cmp::Ordering::Equal => fst.iter().zip_eq(snd.iter()).map(|(f,s)| TestCrossover(f.0, f.1.max(s.1))).collect(),
+        };
+        m.iter().zip_eq(expected.iter()).for_each(|(a,b)| assert_eq!(a.1,b.1));
+    } 
+  }
 }
