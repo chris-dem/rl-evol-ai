@@ -16,7 +16,7 @@ impl CrossoverMisc {
   }
 }
 
-const DEFAULT_RANGE : f32 = 1000.;
+const DEFAULT_RANGE : f32 = 10.;
 
 impl Default for CrossoverMisc {
     fn default() -> Self {
@@ -28,7 +28,7 @@ impl Default for CrossoverMisc {
 fn generate_weight(max_w: f32, w1: f32, w2: f32) -> f32 {
     let w1 = w1.clamp(-max_w, max_w);
     let w2 = w2.clamp(-max_w, max_w);
-    let diff = w1- w2;
+    let diff = w1 - w2;
     let factor = (diff.powi(2) + E).ln();
         // Current implementation, use linear interpolation and sigmoid to interpolate between points
     Activation::Sigmoid.activate(diff)
@@ -103,7 +103,7 @@ mod tests {
       }
     }
     mod items {
-      use std::collections::{BTreeMap, HashMap};
+      use std::collections::BTreeMap;
       use super::*;
 
       #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

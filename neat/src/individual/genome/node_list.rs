@@ -96,3 +96,15 @@ pub struct NodeList {
     pub output: Vec<Node>, // Due to mutation, output cells also get mutated
     pub hidden: Vec<Node>,
 }
+
+impl NodeList {
+    // Create node list assuming that hidden list is sorted
+    pub fn new(input: Arc<[Node]>, output: Vec<Node>, hidden: Vec<Node>) -> Self {
+        assert!(hidden.windows(2).all(|w| w[0].node_id < w[1].node_id));
+        Self {
+            input : input.clone(),
+            output: output.clone(),
+            hidden,
+        }
+    }
+}
